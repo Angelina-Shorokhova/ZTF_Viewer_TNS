@@ -30,6 +30,7 @@ from ztf_viewer.pages.akb_table import get_layout as get_anomalies_layout
 from ztf_viewer.pages.login import get_layout as get_login_layout
 from ztf_viewer.pages.search import get_layout as get_search_layout
 from ztf_viewer.pages.tags import get_layout as get_tags_layout
+from ztf_viewer.pages.submit_tns import get_layout as get_submit_tns_layout
 from ztf_viewer.pages.viewer import get_layout as get_viewer_layout
 from ztf_viewer.procpool import shutdown_pool
 from ztf_viewer.util import DEFAULT_DR, YEAR, available_drs, list_join
@@ -616,6 +617,12 @@ archivePrefix = {arXiv},
     if routes.TAGS.search(pathname):
         return [
             get_tags_layout(pathname, search),
+            no_update,
+            no_update,
+        ]
+    if routes.SUBMIT_TNS.search(pathname):
+        return [
+            await get_submit_tns_layout(pathname, search),
             no_update,
             no_update,
         ]

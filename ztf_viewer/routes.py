@@ -27,7 +27,7 @@ SEARCH = re.compile(
 LOGIN = re.compile(r"^/+login/*$")
 ANOMALIES = re.compile(r"^/+(?:(?:anomalies)|(?:akb))/*$")
 TAGS = re.compile(r"^/+tags/*$")
-
+SUBMIT_TNS = re.compile(r"^/+submit-tns/*$")
 
 BASE_TITLE = "SNAD ZTF viewer"
 
@@ -67,4 +67,6 @@ def page_title(pathname: str | None) -> str:
         return f"Anomalies — {BASE_TITLE}"
     if TAGS.search(pathname):
         return f"Tags — {BASE_TITLE}"
+    if SUBMIT_TNS.search(pathname):
+        return f"Submit to TNS — {BASE_TITLE}"
     return f"404 — {BASE_TITLE}"
