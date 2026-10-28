@@ -1,10 +1,14 @@
+import os
 import io
+import re
 import json
 import time
 import requests
 import numpy as np
 import pandas as pd
 from astropy.table import Table
+from astropy.coordinates import SkyCoord
+from alerce.core import Alerce
 
 GROUP_ID = '95'
 DATA_SOURCE_ID = '48'
@@ -17,23 +21,20 @@ JSON_REPORTS_DIR = '/tmp/json_reports'
 BOT_ID = '87994'
 BOT_NAME = 'SNAD_bot'
 
-
 def flux_error(mag, err_mag):
     err_down = 10**(-0.4*(mag - err_mag)) - 10**(-0.4*mag)
     err_up = 10**(-0.4*mag) - 10**(-0.4*(mag + err_mag))
     return 0.5*(err_down + err_up)
 
-
 def mag_error(flux, err_flux):
-    err_down = abs(-2.5*np.log10(flux + err_flux) + 2.5*np.log10(flux))
-    err_up = abs(-2.5*np.log10(flux) + 2.5*np.log10(flux - err_flux))
+    flux = np.clip(flux, 1e-10, None)
+    err_down = abs(-2.5*np.log10(np.clip(flux + err_flux, 1e-10, None)) + 2.5*np.log10(flux))
+    err_up = abs(-2.5*np.log10(flux) + 2.5*np.log10(np.clip(flux - err_flux, 1e-10, None)))
     err_down = np.where(np.isnan(err_down), 1e4, err_down)
     err_up = np.where(np.isnan(err_up), 1e4, err_up)
     return err_down, err_up
 
-
 def load_snad_data(oid, dr="dr24", cache_dir=SNAD_CACHE_DIR):
-    import os
     os.makedirs(cache_dir, exist_ok=True)
     cache_file = os.path.join(cache_dir, f'{oid}_{dr}.csv')
     if os.path.exists(cache_file):
@@ -52,27 +53,99 @@ def load_snad_data(oid, dr="dr24", cache_dir=SNAD_CACHE_DIR):
             return None
     return None
 
-
-def get_ra_dec(oid, cache_dir=SNAD_CACHE_DIR):
-    import os
+def get_meta(oid, cache_dir=SNAD_CACHE_DIR):
     os.makedirs(cache_dir, exist_ok=True)
     cache_file = os.path.join(cache_dir, f'{oid}_coord.json')
+    
     if os.path.exists(cache_file):
-        with open(cache_file) as f:
-            d = json.load(f)
-            return d['ra'], d['dec']
+        try:
+            with open(cache_file) as f:
+                d = json.load(f)
+                return d.get('ra'), d.get('dec'), d.get('ztf_id', 'None'), float(d.get('separation', 99.0))
+        except Exception:
+            pass
+            
     url = f'http://db.ztf.snad.space/api/v3/data/latest/oid/full/json?oid={oid}'
     try:
         r = requests.get(url, timeout=(10, 60))
         soup = r.json()
-        ra = round(soup[oid]['meta']['coord']['ra'], 5)
-        dec = round(soup[oid]['meta']['coord']['dec'], 5)
-        with open(cache_file, 'w') as f:
-            json.dump({'ra': ra, 'dec': dec}, f)
-        return ra, dec
-    except Exception:
-        return None, None
+        meta = soup[oid]['meta']
+        ra = round(float(meta['coord']['ra']), 5)
+        dec = round(float(meta['coord']['dec']), 5)
+        
+        ztf_id = 'None'
+        separation = 99.0
+        coord = SkyCoord(ra, dec, unit="deg")
 
+        try:
+            alerce = Alerce()
+            df = alerce.query_objects(format="pandas", ra=ra, dec=dec, radius=2.0, page_size=128)
+            if not df.empty:
+                for _, row in df.iterrows():
+                    if 'meanra' in row and 'meandec' in row:
+                        c2 = SkyCoord(row['meanra'], row['meandec'], unit="deg")
+                        sep = float(coord.separation(c2).arcsec)
+                        if sep < separation:
+                            separation = sep
+                            ztf_id = str(row['oid'])
+            print(f"DEBUG ALeRCE: Найден {ztf_id}, separation {separation}")
+        except Exception as e:
+            print(f"DEBUG ALeRCE: Ошибка - {e}")
+
+        try:
+            fink_url = "https://api.ztf.fink-portal.org/api/v1/conesearch"
+            fink_payload = {"ra": ra, "dec": dec, "radius": 2.0}
+            fink_resp = requests.post(fink_url, json=fink_payload, timeout=10)
+            
+            if fink_resp.status_code == 200:
+                data = fink_resp.json()
+                if isinstance(data, list) and len(data) > 0:
+                    for obj in data:
+                        if 'i:ra' in obj and 'i:dec' in obj and 'i:objectId' in obj:
+                            c2 = SkyCoord(obj['i:ra'], obj['i:dec'], unit="deg")
+                            sep = float(coord.separation(c2).arcsec)
+                            if sep < separation:
+                                separation = sep
+                                ztf_id = obj['i:objectId']
+            print(f"DEBUG Fink: Найден {ztf_id}, separation {separation}")
+        except Exception as e:
+            print(f"DEBUG Fink: Ошибка - {e}")
+
+        print(f"DEBUG ИТОГ: ztf_id={ztf_id}, separation={separation}")
+
+        with open(cache_file, 'w') as f:
+            json.dump({'ra': ra, 'dec': dec, 'ztf_id': ztf_id, 'separation': separation}, f)
+            
+        return ra, dec, ztf_id, separation
+    except Exception as e:
+        print(f"Error in get_meta: {e}")
+        return None, None, 'None', 99.0
+
+def get_snad_name_from_catalog(oid, timeout=10):
+    sheet_url = 'https://docs.google.com/spreadsheets/d/1sVgwCLy9i2kgDY1V7s1dy2nybCczL4hLq5mQ3txICNI/edit#gid=0'
+    csv_export_url = sheet_url.replace('/edit#gid=', '/export?format=csv&gid=')
+    
+    try:
+        response = requests.get(csv_export_url, timeout=timeout)
+        response.raise_for_status()
+        df = pd.read_csv(io.StringIO(response.text))
+        
+        match = df[df['OID'].astype(str) == str(oid)]
+        if not match.empty:
+            return str(match.iloc[-1]['Name'])
+        
+        if not df.empty and 'Name' in df.columns:
+            last_name = str(df.iloc[-1]['Name'])
+            num_match = re.search(r'(\d+)$', last_name)
+            if num_match:
+                next_num = int(num_match.group(1)) + 1
+                prefix = last_name[:num_match.start(1)]
+                return f"{prefix}{next_num}"
+                
+    except Exception as e:
+        print(f"Warning: Could not fetch SNAD catalog: {e}")
+        
+    return f"SNAD{oid}"
 
 def enrich_data(data, ref, err_ref):
     data = data.copy()
@@ -82,7 +155,6 @@ def enrich_data(data, ref, err_ref):
     data['magerr_down'] = mag_error(data['flux'], data['fluxerr'])[0]
     data['magerr_up'] = mag_error(data['flux'], data['fluxerr'])[1]
     return data
-
 
 def find_first_detection(data, mjd_start):
     subset = data[data['mjd'] >= mjd_start]
@@ -108,36 +180,12 @@ def find_first_detection(data, mjd_start):
             }
     return None
 
-
-def build_remark(algorithm, obj_id, ztf_id, snad_name, custom_remark=""):
-    if ztf_id and ztf_id.lower() != 'none':
-        ztf_alert_remark = (f"The ZTF Alert ID for this object is {ztf_id}. "
-                            f"The internal SNAD Object ID is {snad_name}.")
-    else:
-        ztf_alert_remark = (f"There is no ZTF Alert ID for this object (i.e., it is not present "
-                            f"in the alert stream), so we report the internal SNAD Object ID instead. "
-                            f"The internal SNAD Object ID is {snad_name}.")
-    base = f"See more info at: https://ztf.snad.space/view/{obj_id}. {ztf_alert_remark}"
-    if algorithm == 'AAD':
-        return f"Transient was identified by AAD (https://arxiv.org/pdf/1909.13260.pdf). {base}"
-    elif algorithm == 'PineForest':
-        return f"Transient was identified by PineForest (https://arxiv.org/abs/2410.17142). {base}"
-    elif algorithm == 'Miner':
-        return f"Transient was identified by similarity search (https://arxiv.org/pdf/2111.11555.pdf). {base}"
-    elif algorithm == 'Signature':
-        return f"Transient was identified by signature similarity (https://arxiv.org/abs/2506.16314). {base}"
-    elif algorithm == 'Custom':
-        return custom_remark.strip() or base
-    return f"{base}"
-
-
 def build_phot_remark(ztf_id, ref, oid, passband):
     if ztf_id and ztf_id.lower() != 'none':
         return (f"For the first photometric point reference magnitude is {ref} mag. "
-                f"ZTF DR OID {oid} ({passband}). ZTF Alert ID {ztf_id}.")
+                f"ZTF DR OID {oid} ({passband}). ZTF Alert ID is {ztf_id}.")
     return (f"For the first photometric point reference magnitude is {ref} mag. "
             f"ZTF DR OID {oid} ({passband}). No ZTF Alert ID found.")
-
 
 def send_json_report(url, payload, api_key, bot_id, bot_name):
     try:
@@ -149,7 +197,6 @@ def send_json_report(url, payload, api_key, bot_id, bot_name):
         print(f"Send error: {e}")
         return None
 
-
 def send_reply(url, report_id, api_key, bot_id, bot_name):
     try:
         headers = {'User-Agent': f'tns_marker{{"tns_id":{bot_id}, "type":"bot", "name":"{bot_name}"}}'}
@@ -159,7 +206,6 @@ def send_reply(url, report_id, api_key, bot_id, bot_name):
     except Exception as e:
         print(f"Reply error: {e}")
         return None
-
 
 def extract_objname(data):
     if isinstance(data, dict):
@@ -177,7 +223,6 @@ def extract_objname(data):
             if r:
                 return r
     return None
-
 
 def submit_report(url, payload, api_key, bot_id, bot_name):
     resp = send_json_report(url, payload, api_key, bot_id, bot_name)
@@ -199,3 +244,77 @@ def submit_report(url, payload, api_key, bot_id, bot_name):
         elif rr.status_code == 404:
             continue
     return None
+
+def build_payload(oid_dr, det, reporter, tns_type, remark, phot_remark):
+    from astropy.time import Time
+    t = Time(det['mjd'], format='mjd', scale='utc')
+    discovery_datetime_str = t.iso
+
+    filter_id = '110' if det['filter'] == 'zg' else '111'
+    at_type = {'PSN': '1', 'PNV': '2', 'AGN': '3', 'NUC': '4', '0': '0'}.get(tns_type, '0')
+
+    payload = {
+        "at_report": {"0": {
+            "ra":  {"value": str(oid_dr["ra"]), "units": "deg"},
+            "dec": {"value": str(oid_dr["dec"]), "units": "deg"},
+            "reporting_group_id": GROUP_ID,
+            "discovery_data_source_id": DATA_SOURCE_ID,
+            "reporter": f"{reporter} on behalf of the SNAD team",
+            "discovery_datetime": discovery_datetime_str,
+            "at_type": at_type,
+            "internal_name": oid_dr["oid"],
+            "internal_name_format": {"prefix": "", "year_format": "", "postfix": ""},
+            "remarks": remark,
+            "proprietary_period_groups": [GROUP_ID],
+            "proprietary_period": {
+                "proprietary_period_value": "0",
+                "proprietary_period_units": "days",
+            },
+            "non_detection": {
+                "obsdate": "", "limiting_flux": "", "flux_units": "",
+                "filter_value": "", "instrument_value": "",
+                "exptime": "", "observer": "", "comments": "",
+                "archiveid": ARCHIVE_ID, "archival_remarks": "",
+            },
+            "photometry": {"photometry_group": {"0": {
+                "obsdate": discovery_datetime_str,
+                "flux": str(det['orig_mag']),
+                "flux_error": "",
+                "limiting_flux": "",
+                "flux_units": "1",
+                "filter_value": filter_id,
+                "instrument_value": "196",
+                "exptime": "",
+                "observer": "ZTF",
+                "comments": phot_remark,
+            }}},
+        }}
+    }
+    return payload
+
+def update_snad_catalog(internal_snad_name, ra, dec, obj_id, discovery_date, mag, magerr_down, magerr_up, ref, err_ref, tns_name, tns_type, ztf_id="None"):
+    try:
+        catalog_entry_fn = f"{obj_id}_catalog_entry.csv"
+        os.makedirs('./new_entry_for_SNAD_catalog_master', exist_ok=True)
+
+        try:
+            catalog_entry_df = pd.DataFrame([[f'{str(internal_snad_name)}', ra, dec, obj_id, str(discovery_date), f'{str(mag)}', magerr_down, magerr_up, ref, err_ref, f'AT {str(tns_name)}', tns_type, ztf_id, None, None, None]], 
+                                            columns=['Name', 'R.A.', 'Dec.', 'OID', 'Discovery date (UT)', 'mag', 'er_down', 'er_up', 'ref', 'er_ref', 'TNS', 'Type', 'Comments', 'z_ph', 'er_z_ph', 'Remarks'])
+        except Exception:
+            catalog_entry_df = pd.DataFrame([[f'{str(internal_snad_name)}', ra, dec, obj_id, str(discovery_date), f'{str(mag)}', magerr_down, magerr_up, ref, err_ref, 'AT XXX', tns_type, ztf_id, None, None, None]], 
+                                            columns=['Name', 'R.A.', 'Dec.', 'OID', 'Discovery date (UT)', 'mag', 'er_down', 'er_up', 'ref', 'er_ref', 'TNS', 'Type', 'Comments', 'z_ph', 'er_z_ph', 'Remarks'])
+        
+        catalog_entry_df.set_index('Name', inplace=True)
+        catalog_entry_df.to_csv(f'./new_entry_for_SNAD_catalog_master/{catalog_entry_fn}', index=True)
+
+        sheet_url = 'https://docs.google.com/spreadsheets/d/1sVgwCLy9i2kgDY1V7s1dy2nybCczL4hLq5mQ3txICNI/edit?gid=0#gid=0'
+        csv_export_url = sheet_url.replace('/edit#gid=', '/export?format=csv&gid=')
+        snad_catalog_df = pd.read_csv(csv_export_url, index_col=0)
+        
+        catalog_entry_df = pd.read_csv(f'./new_entry_for_SNAD_catalog_master/{catalog_entry_fn}', index_col=0)
+        updated_snad_catalog_df = pd.concat([snad_catalog_df, catalog_entry_df])
+        updated_snad_catalog_df.to_csv('SNAD_catalog_master_test.csv', index=True)
+        return True
+    except Exception as e:
+        print(f"Error updating SNAD catalog: {e}")
+        return False

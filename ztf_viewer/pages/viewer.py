@@ -585,6 +585,12 @@ async def get_layout(pathname, search):
                 ],
                 style={"display": "flex"},
             ),
+            dcc.Link(
+                "Submit to TNS",
+                href=f"/submit-tns?oid={oid}&dr={dr}",
+                target="_blank",
+                className="tns-submit-btn",
+            ),
             html.Div(
                 [
                     html.Div(

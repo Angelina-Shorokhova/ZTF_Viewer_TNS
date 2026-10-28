@@ -32,5 +32,6 @@ async def do_login(n_submit, token):
     except UnAuthorized:
         return "Login failed: wrong token"
     if token:
-        ctx.response.set_cookie("akb_token", token, secure=True, samesite="Strict", max_age=31 * 86400)
+        ctx.response.set_cookie("akb_token", token, secure=False, samesite="Strict", max_age=31 * 86400)
+
     return ["You are authorised as ", html.B(username)]

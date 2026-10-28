@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 
 import argparse
@@ -6,6 +7,7 @@ import logging
 import pathlib
 import urllib.parse
 from concurrent.futures import ThreadPoolExecutor
+from dash import ctx
 
 import anyio.to_thread
 import uvicorn
@@ -86,6 +88,12 @@ app.layout = html.Div(
                     ],
                 ),
                 html.Div(id="username", style={"position": "absolute", "top": 0, "right": "1em"}),
+
+            ]              
+        ),
+        html.Div(
+            id="oid-search-bar",
+            children=[   
                 "ZTF DR OID or SNAD name ",
                 dcc.Input(
                     id="input-oid",
@@ -108,7 +116,8 @@ app.layout = html.Div(
             ]
         ),
         html.Div(
-            [
+            id="coord-search-bar",
+            children=[
                 "Coordinates or name ",
                 dcc.Input(
                     id="input-coord-or-name",
@@ -637,6 +646,17 @@ def parse_args(args):
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="127.0.0.1")
     return parser.parse_args(args)
+
+@app.callback(
+    Output("oid-search-bar", "style"),
+    Output("coord-search-bar", "style"),
+    Input("url", "pathname"),
+)
+
+def toggle_search_bars(pathname):
+    if isinstance(pathname, str) and pathname.startswith("/submit-tns"):
+        return {"display": "none"}, {"display": "none"}
+    return {}, {}
 
 
 if __name__ == "__main__":

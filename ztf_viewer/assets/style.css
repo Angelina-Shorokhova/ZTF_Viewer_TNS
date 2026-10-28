@@ -338,3 +338,15 @@ Example:
         animation: none;
     }
 }
+
+.tns-submit-btn {
+    display: inline-block;
+    margin: 16px 0;
+    padding: 10px 24px;
+    font-size: 16px;
+    font-weight: bold;
+    border: 1px solid #888;
+    border-radius: 4px;
+    text-decoration: none;
+    color: inherit;
+}

@@ -1,39 +1,50 @@
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+import pandas as pd
 
+def build_lightcurve_figure(data, det):
+    df = pd.DataFrame({
+        'mjd': data['mjd'].astype(float) - 58000,
+        'mag': data['mag'].astype(float),
+        'magerr': data['magerr'].astype(float),
+        'filter': data['filter'].astype(str)
+    }).dropna()
 
-def build_lightcurve_figure(data, det, ref):
-    fig = make_subplots(rows=1, cols=2, subplot_titles=("Relative flux", "Magnitude"))
+    target_filter = det['filter']
+    df_filt = df[df['filter'] == target_filter]
 
-    fig.add_trace(
-        go.Scatter(
-            x=data['mjd'], y=data['flux'],
-            error_y=dict(type='data', array=data['fluxerr']),
-            mode='markers', marker=dict(size=4), name='flux',
-        ),
-        row=1, col=1,
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=df_filt['mjd'],
+        y=df_filt['mag'],
+        error_y=dict(type='data', array=df_filt['magerr']),
+        mode='markers',
+        marker=dict(size=5, color='#2c3e50', opacity=0.8),
+        name=f'{target_filter}-band'
+    ))
+
+    det_mjd = float(det['mjd']) - 58000
+    det_mag = float(det['orig_mag'])
+    
+    fig.add_trace(go.Scatter(
+        x=[det_mjd],
+        y=[det_mag],
+        mode='markers',
+        marker=dict(size=15, color='red', symbol='star'),
+        name='Discovery'
+    ))
+
+    fig.add_vline(x=det_mjd, line_dash="dash", line_color="red")
+
+    fig.update_layout(
+        title=f"Light Curve ({target_filter}-band)",
+        xaxis_title="MJD - 58000",
+        yaxis_title="mag",
+        height=400,
+        margin=dict(l=40, r=20, t=50, b=40),
+        plot_bgcolor='white'
     )
-    fig.add_vline(x=det['mjd'], line_dash='dash', line_color='red', row=1, col=1)
-    fig.add_trace(
-        go.Scatter(x=[det['mjd']], y=[det['flux']], mode='markers',
-                   marker=dict(size=12, color='red'), name='1st detection'),
-        row=1, col=1,
-    )
+    fig.update_yaxes(autorange="reversed", showgrid=True, gridcolor='#eee')
+    fig.update_xaxes(showgrid=True, gridcolor='#eee')
 
-    fig.add_trace(
-        go.Scatter(
-            x=data['mjd'], y=data['mag'],
-            error_y=dict(
-                type='data', symmetric=False,
-                array=data['magerr_up'].tolist(),
-                arrayminus=data['magerr_down'].tolist(),
-            ),
-            mode='markers', marker=dict(size=4), name='mag',
-        ),
-        row=1, col=2,
-    )
-    fig.add_vline(x=det['mjd'], line_dash='dash', line_color='red', row=1, col=2)
-    fig.add_hline(y=ref, line_dash='dash', line_color='black', row=1, col=2)
-    fig.update_yaxes(autorange='reversed', row=1, col=2)
-    fig.update_layout(height=380, margin=dict(l=40, r=20, t=40, b=40))
     return fig
