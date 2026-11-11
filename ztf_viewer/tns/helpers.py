@@ -426,7 +426,7 @@ def is_already_submitted(ra, dec, discovery_datetime_str):
         
     return False, None, None, 999.0
 
-def upload_file_to_tns(file_url, oid, api_key, bot_id, bot_name):
+def upload_file_to_tns(file_url, oid, tns_url, api_key, bot_id, bot_name):
     try:
         img_resp = requests.get(file_url, timeout=30)
         img_resp.raise_for_status()
@@ -434,7 +434,7 @@ def upload_file_to_tns(file_url, oid, api_key, bot_id, bot_name):
         file_content = img_resp.content
         filename = f"{oid}.png"
         
-        upload_url = "https://sandbox.wis-tns.org/api/set/file-upload" 
+        upload_url = f"{tns_url}/set/file-upload"
 
         headers = {'User-Agent': f'tns_marker{{"tns_id":{bot_id}, "type":"bot", "name":"{bot_name}"}}'}
         

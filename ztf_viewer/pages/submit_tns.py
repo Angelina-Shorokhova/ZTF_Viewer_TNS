@@ -132,6 +132,21 @@ async def get_layout(pathname, search):
 
         html.Div([
             html.H2("Submit to TNS", style={"marginBottom": "5px"}),
+            html.Div([
+                html.Label("Submit Mode:", style={"fontWeight": "bold", "marginRight": "15px"}),
+                dcc.RadioItems(
+                    id="tns-mode",
+                    options=[
+                        {"label": "Sandbox", "value": "sandbox"},
+                        {"label": "TNS", "value": "production"}
+                    ],
+                    value="sandbox",
+                    inline=True,
+                    labelStyle={"marginRight": "20px", "cursor": "pointer"}
+                ),
+            ], style={"marginBottom": "20px", "padding": "10px", "backgroundColor": "#e9ecef", "borderRadius": "5px"}),
+            
+            html.Div(id="tns-mode-warning", style={"color": "red", "fontWeight": "bold", "marginBottom": "20px"}),
             html.H4(f"Object OID: {oid} ({dr})", style={"color": "#666", "marginBottom": "20px"}),
             lc_warning,
 
@@ -301,9 +316,11 @@ def update_generated_text(method, method_other, method_article, comment, reporte
     State("tns-reporter", "value"), State("tns-method", "value"), State("tns-method-other", "value"),
     State("tns-method-article", "value"), State("tns-comment", "value"), State("tns-type", "value"),
     State("tns-snad-name", "value"), State("tns-internal-name", "value"),
+    State("tns-mode", "value"),
     prevent_initial_call=True,
 )
-async def handle_submit(n_clicks, force_clicks, det, oid_dr, ref_str, err_ref_str, reporter, method, method_other, method_article, comment, tns_type, snad_name, internal_name):
+async def handle_submit(n_clicks, force_clicks, det, oid_dr, ref_str, err_ref_str, reporter, method, method_other, method_article, comment, tns_type, snad_name, internal_name, tns_mode):
+
     if not n_clicks and not force_clicks:
         return "", no_update
     
@@ -316,8 +333,13 @@ async def handle_submit(n_clicks, force_clicks, det, oid_dr, ref_str, err_ref_st
     if not api_key:
         return html.Div("TNS_API_KEY is not set on server.", style={"color": "red"}), no_update
 
-    TNS_HOST = 'sandbox.wis-tns.org'
+    if tns_mode == "production":
+        TNS_HOST = 'www.wis-tns.org'
+    else:
+        TNS_HOST = 'sandbox.wis-tns.org'
+        
     tns_url = f'https://{TNS_HOST}/api'
+
     bot_id = '87994'
     bot_name = 'SNAD_bot'
 
@@ -350,7 +372,7 @@ async def handle_submit(n_clicks, force_clicks, det, oid_dr, ref_str, err_ref_st
                 ]), {**BTN_STYLE, "backgroundColor": "#f0ad4e", "color": "white", "display": "inline-flex"}
 
     figure_url = f"https://ztf.snad.space/{oid_dr['dr']}/figure/{oid_dr['oid']}?format=png"
-    uploaded_filename = await asyncio.to_thread(helpers.upload_file_to_tns, figure_url, oid_dr['oid'], api_key, bot_id, bot_name)
+    uploaded_filename = await asyncio.to_thread(helpers.upload_file_to_tns, figure_url, oid_dr['oid'], tns_url, api_key, bot_id, bot_name)
     payload = helpers.build_payload(oid_dr, det, reporter, tns_type, remark, phot_remark,related_file_name=uploaded_filename)
     payload["at_report"]["0"]["internal_name"] = internal_name
     payload["at_report"]["0"]["photometry"]["photometry_group"]["0"]["flux"] = str(round(det['orig_mag'], 2))
