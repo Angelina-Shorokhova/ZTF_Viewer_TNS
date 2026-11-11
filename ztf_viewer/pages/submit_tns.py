@@ -189,9 +189,7 @@ async def get_layout(pathname, search):
             dcc.Loading(dcc.Graph(id="tns-graph", config={'displayModeBar': True, 'displaylogo': False})),
 
             html.Div(id="tns-extracted", style={"marginTop": "15px", "fontFamily": "monospace", "fontSize": "18px", "backgroundColor": "#fff", "padding": "15px", "borderLeft": "5px solid #f1c40f", "boxShadow": "0 2px 5px rgba(0,0,0,0.1)"}),
-
-            html.Label("Generated TNS Payload (Review):", style={"fontWeight": "bold", "marginTop": "25px"}),
-            html.Pre(id="tns-generated-text", style={"whiteSpace": "pre-wrap", "border": "1px solid #ddd", "padding": "15px", "backgroundColor": "#fafafa", "fontSize": "12px", "marginBottom": "20px", "maxHeight": "300px", "overflowY": "scroll"}),
+            html.Div(id="tns-generated-text", style={"marginBottom": "20px"}),
 
             html.Div([
                 dcc.Link("BACK TO OBJECT", href=back_href, style=BTN_STYLE),
@@ -283,28 +281,66 @@ def get_remark_text(method, method_other, method_article, comment, oid_dr, inter
 @callback(
     Output("tns-generated-text", "children"),
     Input("tns-method", "value"), Input("tns-method-other", "value"), Input("tns-method-article", "value"),
-    Input("tns-comment", "value"), Input("tns-reporter", "value"), Input("tns-type", "value"), Input("tns-refmag", "value"),
+    Input("tns-comment", "value"), Input("tns-reporter", "value"), Input("tns-type", "value"), 
+    Input("tns-refmag", "value"), Input("tns-err-refmag", "value"),
     Input("tns-det-store", "data"), Input("tns-snad-name", "value"), Input("tns-internal-name", "value"),
     State("tns-oid-dr", "data"),
 )
-def update_generated_text(method, method_other, method_article, comment, reporter, tns_type, ref_str, det, snad_name, internal_name, oid_dr):
+def update_generated_text(method, method_other, method_article, comment, reporter, tns_type, ref_str, err_ref_str, det, snad_name, internal_name, oid_dr):
     if not oid_dr or not snad_name or not internal_name:
         return "Loading data..."
    
     if not det:
         return "No detection found. Please adjust the Refmag value."
+
     t = Time(det['mjd'], format='mjd', scale='utc')
     discovery_datetime_str = t.iso
-    internal_name = helpers.validate_internal_name(internal_name, snad_name, discovery_datetime_str, oid_dr.get("ztf_id", "None"))
+    internal_name = helpers.validate_internal_name(internal_name, snad_name, discovery_datetime_str)
 
     remark = get_remark_text(method, method_other, method_article, comment, oid_dr, internal_name, snad_name)
-    phot_remark = helpers.build_phot_remark(internal_name, ref_str, oid_dr["oid"], det["filter"]) 
-    
+    phot_remark = helpers.build_phot_remark(internal_name, ref_str, oid_dr["oid"], det["filter"])
+
     payload = helpers.build_payload(oid_dr, det, reporter, tns_type, remark, phot_remark)
     payload["at_report"]["0"]["internal_name"] = internal_name
     payload["at_report"]["0"]["photometry"]["photometry_group"]["0"]["flux"] = str(round(det['orig_mag'], 2))
+
+    at_rep = payload["at_report"]["0"]
     
-    return json.dumps(payload, indent=4)
+    tns_type_names = {item["value"]: item["label"] for item in TNS_TYPES}
+    tns_type_display = tns_type_names.get(tns_type, tns_type)
+    
+    def format_row(label, value):
+        return html.Tr([
+            html.Td(label, style={"fontWeight": "bold", "padding": "6px 15px 6px 0", "verticalAlign": "top", "width": "140px"}),
+            html.Td(value, style={"padding": "6px 0"})
+        ])
+
+    review_table = html.Table([
+        html.Tbody([
+            format_row("Reporter:", at_rep["reporter"]),
+            format_row("RA / DEC (deg):", f"{at_rep['ra']['value']} , {at_rep['dec']['value']}"),
+            format_row("Internal Name:", at_rep["internal_name"]),
+            format_row("TNS Type:", tns_type_display),
+            format_row("Discovery Date (UT):", at_rep["discovery_datetime"]),
+            format_row("Magnitude:", f"{round(det['orig_mag'], 2)} ({det['filter']}-band)"),
+
+            format_row("Photometry Remark:", html.Div(phot_remark, style={"fontSize": "13px"})),
+            format_row("Remarks:", html.Div(at_rep["remarks"], style={"whiteSpace": "pre-wrap", "fontSize": "13px"})),
+        ])
+    ], style={"width": "100%", "borderCollapse": "collapse", "textAlign": "left"})
+
+    review_details = html.Details([
+        html.Summary("Report review", style={"cursor": "pointer", "fontWeight": "bold", "fontSize": "16px", "marginBottom": "10px", "color": "#333"}),
+        html.Div(review_table, style={"border": "1px solid #ddd", "padding": "15px", "backgroundColor": "#fff", "borderRadius": "8px"})
+    ], style={"marginBottom": "20px"})
+
+    json_debug = html.Details([
+        html.Summary("Show raw JSON payload (for debugging)", style={"cursor": "pointer", "color": "#666", "fontSize": "12px"}),
+        html.Pre(json.dumps(payload, indent=4), style={"whiteSpace": "pre-wrap", "fontSize": "11px", "backgroundColor": "#fafafa", "border": "1px solid #ddd", "padding": "10px", "maxHeight": "200px", "overflowY": "scroll"})
+    ])
+
+    return html.Div([review_details, json_debug])
+    
 
 @callback(
     Output("tns-submit-output", "children"),
