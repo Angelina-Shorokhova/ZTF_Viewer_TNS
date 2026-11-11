@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.14"
 resolution-markers = [
     "platform_machine == 'x86_64' and sys_platform == 'linux'",
@@ -17,7 +17,7 @@ overrides = [{ name = "bson", marker = "sys_platform == 'never'" }]
 
 [[package]]
 name = "alerce"
-version = "2.3.1"
+version = "2.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "astropy" },
@@ -26,9 +26,9 @@ dependencies = [
     { name = "pandas" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ea/f6/8bc6cbcb830e55780cdf31ab4a338119ba9f9924bb2d07d879aebfbffe64/alerce-2.3.1.tar.gz", hash = "sha256:efacce6ad6a952db31e26ae50cc84302cbd0085fd45265edc55cf9f4dd815af0", size = 18407, upload-time = "2026-08-07T14:05:49.164Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fd/ca/a56938154173a31780ecc727aa0b88ed5a284abb40e502cf3c28293eae2d/alerce-2.4.0.tar.gz", hash = "sha256:5047528ebceb7eff35554c9c436d703b23817f57b94f76189d9d5c9ddf3095f9", size = 20352, upload-time = "2026-11-05T14:07:15.692Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d0/95/8a3a7b4eb3d8d2686feddd5903c49b6fedaf7712b835fa1c32b4d7c7e22d/alerce-2.3.1-py3-none-any.whl", hash = "sha256:30efbcd42e1a92459816ec068af0d6252ddeaf49697f6d1b62e54455d3fccd3a", size = 21668, upload-time = "2026-08-07T14:05:48.244Z" },
+    { url = "https://files.pythonhosted.org/packages/9f/2e/10cdc3f4b7b8037ce4127f6db05baacf408ba60a25b2463f4d96ae10d973/alerce-2.4.0-py3-none-any.whl", hash = "sha256:9d70e66830a9efbacee8a6a28b8f56710484baac80fa0aca48c094c1d6023993", size = 23576, upload-time = "2026-11-05T14:07:14.654Z" },
 ]
 
 [[package]]
