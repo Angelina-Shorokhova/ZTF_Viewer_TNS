@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.14"
 resolution-markers = [
     "platform_machine == 'x86_64' and sys_platform == 'linux'",
@@ -913,18 +913,25 @@ wheels = [
 
 [[package]]
 name = "mocpy"
-version = "0.20.0"
+version = "0.21.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "astropy" },
     { name = "numpy" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/24/d1/2d524e558c170c22c1eff0b67da03cc82072ddf3a203ddf66b90828f2c58/mocpy-0.20.0.tar.gz", hash = "sha256:a593519e28eef91635ca151fc8b258ac6a56ae6c5c714bfdffc8ab167911f477", size = 103010, upload-time = "2026-03-10T09:03:49.464Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fe/23/4523d90476357ed289e6e64428b8610f09d1c3863533214c98224b4abb22/mocpy-0.21.0.tar.gz", hash = "sha256:4e89785c36aedd075fed2f5b909a26e0b72505603809eb56e654cbf1951191ed", size = 113537, upload-time = "2026-10-27T09:07:15.419Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a0/9b/750d03901b25e0de72c8c2f0ec8bb38ff16aa2fa4f9b2cef7b3269526e81/mocpy-0.20.0-cp314-cp314-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:c6553f3a3a820a477ecb0ffd225dcb431759cacf08bbc1f4f10db85573f7d232", size = 2237392, upload-time = "2026-03-10T09:07:39.076Z" },
-    { url = "https://files.pythonhosted.org/packages/61/46/5046d8dcf24c809bd7d4dbcf0f0cd2746a662c53974ac2832bdc90e510d8/mocpy-0.20.0-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:11f4f451033239ccf9f1360abc3d6951a3e7fd95c10d182c47c748638ff35a53", size = 1140208, upload-time = "2026-03-10T09:08:15.625Z" },
-    { url = "https://files.pythonhosted.org/packages/fc/fb/19f6466c848feaae8a48258a1f7be1124e1a849fdaa7f13b78388a835a89/mocpy-0.20.0-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:85ca13a4585299dd50c7e6ed0bcee16eaa6b932af4f0d294b24257bbcfaa69a5", size = 1273415, upload-time = "2026-03-10T10:13:46.706Z" },
-    { url = "https://files.pythonhosted.org/packages/83/36/191fdd5b9597f571685e005eeabbee5ee37acb4bf9e3f3330ad154e53e9c/mocpy-0.20.0-cp314-cp314-manylinux_2_28_x86_64.whl", hash = "sha256:0d608faea44e1c379983ea6f415bfdfd7aa1cc4728ed222750a04375a525d30d", size = 1273678, upload-time = "2026-03-10T09:08:17.327Z" },
+    { url = "https://files.pythonhosted.org/packages/c7/71/50167578552b3f9ab1cefb0ef141db2b629ceeb3fda2724eaf4010fcdd91/mocpy-0.21.0-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:7261e9d521fa621bc0342b33c83336eb8a38d1a2a6ee8d1d39533a9ac41869d7", size = 1157019, upload-time = "2026-10-27T09:06:39.83Z" },
+    { url = "https://files.pythonhosted.org/packages/85/4a/b96e6d0a9b4fbf6816636bea7a30e89367c323c0a93f4cc2dba7d79b41e6/mocpy-0.21.0-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:48d5290daa926dde2dfa0364a3750a86131a496f2a7dd88cc46245eded41463f", size = 1187570, upload-time = "2026-10-27T09:06:40.895Z" },
+    { url = "https://files.pythonhosted.org/packages/a5/fa/fd42d6041d74817771f5928e9d141c462980c360131c58522041196e6984/mocpy-0.21.0-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:28430b6f1dff09be00b3c15e95ab46e4a00547b3834cdc789caf9218eba9fb30", size = 1289138, upload-time = "2026-10-27T09:06:47.184Z" },
+    { url = "https://files.pythonhosted.org/packages/10/60/3ffa2241e257e705d7b7d9b9b6325dff4201591827abb90767372c9085ce/mocpy-0.21.0-cp310-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:a42b56330f7f5b9c3288f3d3aa7b33fb99acf240d721b1443e54b48cdc9d6a1f", size = 1363646, upload-time = "2026-10-27T09:06:48.303Z" },
+    { url = "https://files.pythonhosted.org/packages/e6/42/c47ee087f44b43edb3e9577eb4d460b744bcc1ab98dd7591003d814d94a1/mocpy-0.21.0-cp310-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:f7041f0e6954962d650816012531c6aff0ed8c25611d9fab95f0eb74354871e8", size = 1472081, upload-time = "2026-10-27T09:06:51.86Z" },
+    { url = "https://files.pythonhosted.org/packages/57/48/f853bb99d72e49e02770caee414c8226d5611de27baa3d6b241e04768cac/mocpy-0.21.0-cp310-abi3-pyemscripten_2026_0_wasm32.whl", hash = "sha256:843e24ec84dfc6b083c8ce4df78df1919ab421ab7780188ed4d6f0ea0f459505", size = 670529, upload-time = "2026-10-27T09:06:53.073Z" },
+    { url = "https://files.pythonhosted.org/packages/3e/4f/8b2e9e541ab45c1e1af57343f26406b2cedf87c6a158b71f94f66602523e/mocpy-0.21.0-cp315-abi3.abi3t-macosx_11_0_arm64.whl", hash = "sha256:127ead26d5425d47a572032059098dd32db6a9f0e1ddc097dc0e84713d9a833d", size = 1153161, upload-time = "2026-10-27T09:06:58.766Z" },
+    { url = "https://files.pythonhosted.org/packages/91/83/5cccd52ae07341fd6fada5202951c06e0ff6a2ba85d9fb73ca26bafabbf3/mocpy-0.21.0-cp315-abi3.abi3t-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:cf11d89832f0e2529ff8fe8796ab8dcb328e077401f2a1be1bc2116592ea4fd5", size = 1182877, upload-time = "2026-10-27T09:06:59.877Z" },
+    { url = "https://files.pythonhosted.org/packages/75/84/904d0086ceb73eb626bac09347221ceec0fb2958fd9e5dce02b54d7fc3f2/mocpy-0.21.0-cp315-abi3.abi3t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:64e0889357d110e699f914e6767695dd419e2818fdfba44adee3307a415bd0a4", size = 1285572, upload-time = "2026-10-27T09:07:05.777Z" },
+    { url = "https://files.pythonhosted.org/packages/c6/17/69d1ea135959c8e0a6ecfd8a3bba4782a67f1b1669cfc14c6b8d10920770/mocpy-0.21.0-cp315-abi3.abi3t-musllinux_1_2_aarch64.whl", hash = "sha256:32b5141bf0eaa6f101dec29dea2b579c1ec75cf7b984441dc23312435bcad43e", size = 1358954, upload-time = "2026-10-27T09:07:06.879Z" },
+    { url = "https://files.pythonhosted.org/packages/62/a9/0d6b938f19b9b98b1f9dd2c3240b052b4068339ea3c0d6dd9be086e7b84b/mocpy-0.21.0-cp315-abi3.abi3t-musllinux_1_2_x86_64.whl", hash = "sha256:f1116195d0f509e40f8c039b1fc20ac9b3d6a621869b7c7ed3085fd375d2ed55", size = 1467861, upload-time = "2026-10-27T09:07:10.352Z" },
 ]
 
 [[package]]
