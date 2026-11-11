@@ -25,6 +25,8 @@ services:
       - proxy
     depends_on:
       - redis
+    env_file:
+      - secret.env
     restart: always
 
 networks:
