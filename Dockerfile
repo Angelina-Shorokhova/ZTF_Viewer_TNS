@@ -1,4 +1,4 @@
-FROM python:3.14-bookworm
+FROM python:3.15-bookworm
 
 # Timezone settings
 ENV TZ=Europe/Moscow
