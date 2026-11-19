@@ -18,7 +18,7 @@ TNS_TYPES = [
     {"label": "PNV - Possible Nova", "value": "PNV"},
     {"label": "AGN - Known AGN", "value": "AGN"},
     {"label": "NUC - Possibly nuclear", "value": "NUC"},
-    {"label": "Other - Undefined", "value": "0"},
+    {"label": "Other - Undefined", "value": "Other"},
 ]
 
 ALGORITHMS = [
@@ -49,7 +49,7 @@ BTN_STYLE = {
 async def get_layout(pathname, search):
     params = {k: v[0] for k, v in urllib.parse.parse_qs(search.lstrip("?")).items()}
     oid = params.get("oid", "")
-    dr = params.get("dr", "dr24")
+    dr = params.get("dr", "")
     back_href = f"/{dr}/view/{oid}" if oid and dr else "/"
 
     default_reporter = "SNAD Reporter"
@@ -98,12 +98,11 @@ async def get_layout(pathname, search):
         ra, dec, ztf_id, separation = await asyncio.to_thread(helpers.get_meta, oid)
     except Exception as e:
         print(f"Meta error: {e}")
-
-    snad_name = f"SNAD_N"
+    snad_name = "SNAD_UNKNOWN"
     try:
-        snad_name = await asyncio.to_thread(helpers.get_snad_name_from_catalog, oid)
-        if not snad_name:
-            snad_name = f"SNAD_N"
+        fetched_name = await asyncio.to_thread(helpers.get_snad_name_from_catalog, oid)
+        if fetched_name and fetched_name.strip():
+            snad_name = fetched_name
     except Exception as e:
         print(f"SnadName error: {e}")
 
@@ -147,7 +146,7 @@ async def get_layout(pathname, search):
         dcc.Store(id="tns-det-store"),
         html.Div([
             html.H2("Submit to TNS", style={"marginTop": "0px", "marginBottom": "10px", "textAlign": "center", "fontWeight": "bold"}),
-            html.P(f"Object OID: {oid} ({dr})", style={"color": "#666", "textAlign": "center", "fontSize": "16px", "marginBottom": "30px"}),
+            html.P(f"Object OID: {oid}", style={"color": "#666", "textAlign": "center", "fontSize": "16px", "marginBottom": "30px"}),
 
             lc_warning, 
             html.Div([
@@ -412,8 +411,8 @@ async def handle_submit(n_clicks, force_clicks, det, oid_dr, ref_str, err_ref_st
     if internal_name.strip() in ["", "None", "SNAD_UNKNOWN"]:
         return html.Div("Error: Please enter a valid Internal Name before submitting.", style={"color": "red"}), no_update
         
-    if "None" in snad_name:
-        return html.Div("Error: SNAD Name is not valid. Please edit it manually.", style={"color": "red"}), no_update
+    if not snad_name or snad_name.strip().upper() in ("SNAD_UNKNOWN", "SNAD_N", "NONE", ""):
+        return html.Div("Error: Please enter a valid SNAD name manually before submitting.", style={"color": "red"}), no_update
 
     api_key = os.getenv("TNS_API_KEY")
     if not api_key:
@@ -455,8 +454,9 @@ async def handle_submit(n_clicks, force_clicks, det, oid_dr, ref_str, err_ref_st
                     html.P("If you believe this is a new event, click 'FORCE SUBMIT' to proceed.", style={"fontWeight": "bold"})
                 ]), {**BTN_STYLE, "backgroundColor": "#f0ad4e", "color": "white", "display": "inline-flex"}
 
-    figure_url = f"https://ztf.snad.space/{oid_dr['dr']}/figure/{oid_dr['oid']}?format=png"
-    
+    dr_part = f"/{oid_dr['dr']}" if oid_dr.get('dr') else ""
+    figure_url = f"https://ztf.snad.space{dr_part}/figure/{oid_dr['oid']}?format=png"
+
     uploaded_filename = await asyncio.to_thread(
         helpers.upload_file_to_tns, figure_url, oid_dr['oid'], tns_url, api_key, bot_id, bot_name
     )

@@ -37,12 +37,13 @@ def mag_error(flux, err_flux):
     return err_down, err_up
 
 
-def load_snad_data(oid, dr="dr24", cache_dir=SNAD_CACHE_DIR):
+def load_snad_data(oid, dr="", cache_dir=SNAD_CACHE_DIR):
     os.makedirs(cache_dir, exist_ok=True)
-    cache_file = os.path.join(cache_dir, f'{oid}_{dr}.csv')
+    dr_suffix = f"/{dr}" if dr else ""
+    cache_file = os.path.join(cache_dir, f'{oid}{dr_suffix.replace("/", "_")}.csv')
     if os.path.exists(cache_file):
         return Table.from_pandas(pd.read_csv(cache_file))
-    url = f'https://ztf.snad.space/{dr}/csv/{oid}'
+    url = f'https://ztf.snad.space{dr_suffix}/csv/{oid}'
     for attempt in range(3):
         try:
             r = requests.get(url, timeout=(30, 120))
@@ -145,8 +146,7 @@ def get_snad_name_from_catalog(oid, timeout=10):
     except Exception as e:
         print(f"Warning: Could not fetch SNAD catalog: {e}")
         
-    return f"SNAD{oid}"
-
+    return None
 
 def enrich_data(data, ref, err_ref):
     data = data.copy()
@@ -370,7 +370,7 @@ def build_payload(oid_dr, det, reporter, tns_type, remark, phot_remark, related_
     discovery_datetime_str = t.iso
 
     filter_id = '110' if det['filter'] == 'zg' else '111'
-    at_type = {'PSN': '1', 'PNV': '2', 'AGN': '3', 'NUC': '4', '0': '0'}.get(tns_type, '0')
+    at_type = {'PSN': '1', 'PNV': '2', 'AGN': '3', 'NUC': '4', 'Other': '0'}.get(tns_type, '0')
 
     payload = {
         "at_report": {"0": {
