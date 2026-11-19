@@ -26,9 +26,13 @@ def build_lightcurve_figure(data, det):
     fig.add_trace(go.Scatter(
         x=df_filt['mjd'] - 58000,
         y=df_filt['mag'],
-        error_y=dict(type='data', array=df_filt['magerr']),
+        error_y=dict(type='data', array=df_filt['magerr'], color='#2c3e50', thickness=1),
         mode='markers',
-        marker=dict(size=6, color='#2c3e50', opacity=0.8),
+        marker=dict(
+            size=9, 
+            color='#2c3e50', 
+            line=dict(color='black', width=1)
+        ),
         name=f'{target_filter}-band',
         customdata=df_filt[['date_str', 'filter']],
         hovertemplate=(
@@ -45,12 +49,14 @@ def build_lightcurve_figure(data, det):
     
     t_det = Time(det['mjd'], format='mjd', scale='utc')
     det_date = t_det.iso
+    
+    snad_yellow = '#f1c40f'
 
     fig.add_trace(go.Scatter(
         x=[det_mjd],
         y=[det_mag],
         mode='markers',
-        marker=dict(size=15, color='red', symbol='star', line=dict(color='black', width=1)),
+        marker=dict(size=14, color=snad_yellow, symbol='star', line=dict(color='black', width=1)),
         name='Discovery',
         hovertemplate=(
             "<b>Discovery</b><br>" +
@@ -62,10 +68,10 @@ def build_lightcurve_figure(data, det):
         )
     ))
 
-    fig.add_vline(x=det_mjd, line_dash="dash", line_color="red")
+    fig.add_vline(x=det_mjd, line_dash="dash", line_color=snad_yellow)
 
     fig.update_layout(
-        title=f"Light Curve ({target_filter}-band)",
+        title=dict(text=f"Light curve ({target_filter}-band)", font=dict(color="black"), x=0.5, xanchor="center"), 
         xaxis_title="mjd - 58000",
         yaxis_title="mag",
         height=450,
@@ -75,7 +81,13 @@ def build_lightcurve_figure(data, det):
         showlegend=False
     )
     
-    fig.update_yaxes(autorange="reversed", showgrid=True, gridcolor='white', zeroline=False)
-    fig.update_xaxes(showgrid=True, gridcolor='white', zeroline=False)
+    fig.update_yaxes(
+        autorange="reversed", showgrid=True, gridcolor='white', zeroline=False,
+        tickfont=dict(color="black"), title_font=dict(color="black")
+    )
+    fig.update_xaxes(
+        showgrid=True, gridcolor='white', zeroline=False,
+        tickfont=dict(color="black"), title_font=dict(color="black")
+    )
 
     return fig

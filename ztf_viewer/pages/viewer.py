@@ -585,12 +585,6 @@ async def get_layout(pathname, search):
                 ],
                 style={"display": "flex"},
             ),
-            dcc.Link(
-                "Submit to TNS",
-                href=f"/submit-tns?oid={oid}&dr={dr}",
-                target="_blank",
-                className="tns-submit-btn",
-            ),
             html.Div(
                 [
                     html.Div(
@@ -770,6 +764,7 @@ async def get_layout(pathname, search):
                 ],
                 id="transient-name-server",
             ),
+            html.Div(id="tns-button-container"),
             html.Div(
                 [
                     html.H2("Astro-COLIBRI"),
@@ -1276,6 +1271,7 @@ app.callback(
         State("akb-description", "value"),
     ],
 )
+
 async def update_akb(n_clicks, oid, tags, description):
     if n_clicks == 0 or n_clicks is None or tags is None:
         raise PreventUpdate
@@ -2834,3 +2830,35 @@ async def set_lc_table(oid, dr, min_mjd, max_mjd):
     if min_mjd is not None and max_mjd is not None and min_mjd >= max_mjd:
         raise PreventUpdate
     return await find_ztf_oid.get_lc(oid, dr, min_mjd=min_mjd, max_mjd=max_mjd)
+
+@app.callback(
+    Output("tns-button-container", "children"),
+    Input("oid", "children"),
+    State("dr", "children")
+)
+
+@app.callback(
+    Output("tns-button-container", "children"),
+    Input("oid", "children"),
+    State("dr", "children")
+)
+async def update_tns_button(oid, dr):
+    if not await akb.is_token_valid():
+        return html.Div()
+        
+    return dcc.Link(
+        "Submit to TNS",
+        href=f"/submit-tns?oid={oid}&dr={dr}",
+        target="_blank",
+        style={
+            "margin": "16px 0",
+            "display": "inline-block",
+            "padding": "10px 24px",
+            "fontSize": "16px",
+            "fontWeight": "bold",
+            "border": "1px solid #888",
+            "borderRadius": "4px",
+            "textDecoration": "none",
+            "color": "inherit",
+        },
+    )

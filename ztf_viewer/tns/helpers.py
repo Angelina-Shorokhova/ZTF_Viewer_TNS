@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from astropy.table import Table
 from astropy.coordinates import SkyCoord
+from astropy.time import Time
 from alerce.core import Alerce
 
 GROUP_ID = '95'
@@ -17,14 +18,15 @@ SNT = 3
 MIN_POINTS = 2
 CLRCOEFF_MAX = 0.2
 SNAD_CACHE_DIR = '/tmp/snad_cache'
-JSON_REPORTS_DIR = '/tmp/json_reports'
 BOT_ID = '87994'
 BOT_NAME = 'SNAD_bot'
+
 
 def flux_error(mag, err_mag):
     err_down = 10**(-0.4*(mag - err_mag)) - 10**(-0.4*mag)
     err_up = 10**(-0.4*mag) - 10**(-0.4*(mag + err_mag))
     return 0.5*(err_down + err_up)
+
 
 def mag_error(flux, err_flux):
     flux = np.clip(flux, 1e-10, None)
@@ -33,6 +35,7 @@ def mag_error(flux, err_flux):
     err_down = np.where(np.isnan(err_down), 1e4, err_down)
     err_up = np.where(np.isnan(err_up), 1e4, err_up)
     return err_down, err_up
+
 
 def load_snad_data(oid, dr="dr24", cache_dir=SNAD_CACHE_DIR):
     os.makedirs(cache_dir, exist_ok=True)
@@ -52,6 +55,7 @@ def load_snad_data(oid, dr="dr24", cache_dir=SNAD_CACHE_DIR):
         except Exception:
             return None
     return None
+
 
 def get_meta(oid, cache_dir=SNAD_CACHE_DIR):
     os.makedirs(cache_dir, exist_ok=True)
@@ -88,9 +92,8 @@ def get_meta(oid, cache_dir=SNAD_CACHE_DIR):
                         if sep < separation:
                             separation = sep
                             ztf_id = str(row['oid'])
-            print(f"DEBUG ALeRCE: Найден {ztf_id}, separation {separation}")
-        except Exception as e:
-            print(f"DEBUG ALeRCE: Ошибка - {e}")
+        except Exception:
+            pass
 
         try:
             fink_url = "https://api.ztf.fink-portal.org/api/v1/conesearch"
@@ -107,19 +110,16 @@ def get_meta(oid, cache_dir=SNAD_CACHE_DIR):
                             if sep < separation:
                                 separation = sep
                                 ztf_id = obj['i:objectId']
-            print(f"DEBUG Fink: Найден {ztf_id}, separation {separation}")
-        except Exception as e:
-            print(f"DEBUG Fink: Ошибка - {e}")
-
-        print(f"DEBUG ИТОГ: ztf_id={ztf_id}, separation={separation}")
+        except Exception:
+            pass
 
         with open(cache_file, 'w') as f:
             json.dump({'ra': ra, 'dec': dec, 'ztf_id': ztf_id, 'separation': separation}, f)
             
         return ra, dec, ztf_id, separation
-    except Exception as e:
-        print(f"Error in get_meta: {e}")
+    except Exception:
         return None, None, 'None', 99.0
+
 
 def get_snad_name_from_catalog(oid, timeout=10):
     sheet_url = 'https://docs.google.com/spreadsheets/d/1sVgwCLy9i2kgDY1V7s1dy2nybCczL4hLq5mQ3txICNI/edit#gid=0'
@@ -147,6 +147,7 @@ def get_snad_name_from_catalog(oid, timeout=10):
         
     return f"SNAD{oid}"
 
+
 def enrich_data(data, ref, err_ref):
     data = data.copy()
     data['flux'] = 10**(-0.4*data['mag']) - 10**(-0.4*ref)
@@ -155,6 +156,7 @@ def enrich_data(data, ref, err_ref):
     data['magerr_down'] = mag_error(data['flux'], data['fluxerr'])[0]
     data['magerr_up'] = mag_error(data['flux'], data['fluxerr'])[1]
     return data
+
 
 def find_first_detection(data, mjd_start):
     subset = data[data['mjd'] >= mjd_start]
@@ -180,6 +182,51 @@ def find_first_detection(data, mjd_start):
             }
     return None
 
+
+def is_already_submitted(ra, dec, discovery_datetime_str):
+    url = f"http://tns.snad.space/api/v1/circle?ra={ra}&dec={dec}&radius_arcsec=2.0"
+    try:
+        resp = requests.get(url, timeout=10)
+        if resp.status_code == 200:
+            data = resp.json()
+            if isinstance(data, list) and len(data) > 0:
+                current_date = Time(discovery_datetime_str)
+                best_match = None
+                min_diff = float('inf')
+                
+                for obj in data:
+                    tns_date_str = obj.get('discoverydate')
+                    prefix = obj.get('name_prefix', obj.get('prefix', '')) 
+                    name = obj.get('name', '')
+                    objname = obj.get('objname', '')
+                    
+                    if objname:
+                        tns_name = objname
+                    elif prefix and name:
+                        tns_name = f"{prefix}{name}"
+                    else:
+                        tns_name = name
+                        if not (tns_name.upper().startswith("AT") or tns_name.upper().startswith("SN")):
+                            tns_name = f"AT{tns_name}"
+                    
+                    if tns_date_str:
+                        try:
+                            tns_date = Time(tns_date_str)
+                            diff_days = abs((current_date - tns_date).jd)
+                            if diff_days < min_diff:
+                                min_diff = diff_days
+                                best_match = (tns_name, tns_date.iso, diff_days)
+                        except Exception:
+                            pass
+                            
+                if best_match:
+                    return True, best_match[0], best_match[1], best_match[2]
+    except Exception as e:
+        print(f"Error checking TNS: {e}")
+        
+    return False, None, None, 999.0
+
+
 def build_phot_remark(ztf_id, ref, oid, passband):
     if ztf_id and ztf_id.lower() != 'none':
         return (f"For the first photometric point reference magnitude is {ref} mag. "
@@ -187,30 +234,68 @@ def build_phot_remark(ztf_id, ref, oid, passband):
     return (f"For the first photometric point reference magnitude is {ref} mag. "
             f"ZTF DR OID {oid} ({passband}). No ZTF Alert ID found.")
 
-def send_json_report(url, payload, api_key, bot_id, bot_name):
+
+def upload_file_to_tns(file_url, oid, tns_url, api_key, bot_id, bot_name):
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    
     try:
-        full_url = url + '/set/bulk-report'
-        print(f"DEBUG TNS: Отправляем на адрес: {full_url}")
+        img_resp = requests.get(file_url, timeout=30, verify=False)
+        img_resp.raise_for_status()
         
+        file_content = img_resp.content
+        filename = f"{oid}.png"
+        
+        upload_url = f"{tns_url}/set/file-upload"
         headers = {'User-Agent': f'tns_marker{{"tns_id":{bot_id}, "type":"bot", "name":"{bot_name}"}}'}
-        resp = requests.post(full_url, headers=headers,
-                             data={'api_key': api_key, 'data': json.dumps(payload)},
-                             timeout=(10, 60))
         
-        print(f"DEBUG TNS: Ответ сервера: {resp.status_code}")
-        if resp.status_code != 200:
-            print(f"DEBUG TNS: Текст ответа: {resp.text[:200]}")
-            
-        return resp
-    except Exception as e:
-        print(f"Send error: {e}")
+        files = {'files[0]': (filename, file_content, 'image/png')}
+        data = {'api_key': api_key}
+        
+        response = requests.post(upload_url, headers=headers, files=files, data=data, timeout=30)
+        
+        if response.status_code == 200:
+            res_json = response.json()
+            if str(res_json.get("id_code")) == "200":
+                uploaded_files = res_json.get("data", [])
+                if isinstance(uploaded_files, list) and len(uploaded_files) > 0:
+                    return uploaded_files[0]
         return None
+    except Exception as e:
+        print(f"Error uploading file: {e}")
+        return None
+
+def send_json_report(url, payload, api_key, bot_id, bot_name):
+    headers = {'User-Agent': f'tns_marker{{"tns_id":{bot_id}, "type":"bot", "name":"{bot_name}"}}'}
+    return requests.post(url + '/set/bulk-report', headers=headers,
+                         data={'api_key': api_key, 'data': json.dumps(payload)},
+                         timeout=(10, 60))
+
 
 def send_reply(url, report_id, api_key, bot_id, bot_name):
     headers = {'User-Agent': f'tns_marker{{"tns_id":{bot_id}, "type":"bot", "name":"{bot_name}"}}'}
     return requests.post(url + '/get/bulk-report-reply', headers=headers,
                          data={'api_key': api_key, 'report_id': report_id},
                          timeout=(10, 60))
+
+
+def extract_objname(data):
+    if isinstance(data, dict):
+        if 'objname' in data:
+            return data['objname']
+        if 'new_object_name' in data:
+            return data['new_object_name']
+        for v in data.values():
+            r = extract_objname(v)
+            if r:
+                return r
+    elif isinstance(data, list):
+        for item in data:
+            r = extract_objname(item)
+            if r:
+                return r
+    return None
+
 
 def extract_tns_error(json_data):
     try:
@@ -233,6 +318,7 @@ def extract_tns_error(json_data):
     except Exception:
         pass
     return None
+
 
 def submit_report(url, payload, api_key, bot_id, bot_name):
     try:
@@ -278,25 +364,8 @@ def submit_report(url, payload, api_key, bot_id, bot_name):
     except Exception as e:
         return None, f"Unexpected error: {str(e)}"
 
-def extract_objname(data):
-    if isinstance(data, dict):
-        if 'objname' in data:
-            return data['objname']
-        if 'new_object_name' in data:
-            return data['new_object_name']
-        for v in data.values():
-            r = extract_objname(v)
-            if r:
-                return r
-    elif isinstance(data, list):
-        for item in data:
-            r = extract_objname(item)
-            if r:
-                return r
-    return None
 
 def build_payload(oid_dr, det, reporter, tns_type, remark, phot_remark, related_file_name=None):
-    from astropy.time import Time
     t = Time(det['mjd'], format='mjd', scale='utc')
     discovery_datetime_str = t.iso
 
@@ -351,16 +420,23 @@ def build_payload(oid_dr, det, reporter, tns_type, remark, phot_remark, related_
         
     return payload
 
-def update_snad_catalog(internal_snad_name, ra, dec, obj_id, discovery_date, mag, magerr_down, magerr_up, ref, err_ref, tns_name, tns_type, ztf_id="None"):
-    google_script_url = os.getenv("GOOGLE_SCRIPT_URL")
-    secret_token = os.getenv("GOOGLE_SHEET_TOKEN")
-    
-    if not google_script_url or not secret_token:
-        print("Error: GOOGLE_SCRIPT_URL or GOOGLE_SHEET_TOKEN is not set in secret.env")
+
+def update_snad_catalog(internal_snad_name, ra, dec, obj_id, discovery_date, mag, 
+                        magerr_down, magerr_up, ref, err_ref, tns_name, tns_type, 
+                        sender, tns_mode, ztf_id="None"):
+    if tns_mode == "production":
+        url = os.getenv("GOOGLE_SCRIPT_URL_TNS")
+        token = os.getenv("GOOGLE_SHEET_TOKEN_TNS")
+    else:
+        url = os.getenv("GOOGLE_SCRIPT_URL_SANDBOX")
+        token = os.getenv("GOOGLE_SHEET_TOKEN_SANDBOX")
+
+    if not url or not token:
+        print(f"Google Script config missing for mode: {tns_mode}")
         return False
-        
+
     payload = {
-        "token": secret_token,
+        "token": token,
         "name": str(internal_snad_name),
         "ra": float(ra) if ra is not None else 0.0,
         "dec": float(dec) if dec is not None else 0.0,
@@ -369,21 +445,21 @@ def update_snad_catalog(internal_snad_name, ra, dec, obj_id, discovery_date, mag
         "mag": round(float(mag), 2),
         "er_down": round(float(magerr_down), 2),
         "er_up": round(float(magerr_up), 2),
-        "ref": float(ref),
+        "ref": round(float(ref), 3),
         "er_ref": round(float(err_ref), 3),
         "tns": f"AT {str(tns_name)}",
         "type": str(tns_type),
-        "comments": str(ztf_id)
+        "comments": str(ztf_id),
+        "sender": str(sender)
     }
     
     try:
-        response = requests.post(google_script_url, json=payload, timeout=15)
+        response = requests.post(url, json=payload, timeout=60)
         if response.status_code == 200:
             res_json = response.json()
             if res_json.get("status") == "success":
                 return True
             else:
-                print(f"Google Script Error: {res_json.get('message')}")
                 return False
         else:
             print(f"HTTP Error: {response.status_code}")
@@ -391,85 +467,3 @@ def update_snad_catalog(internal_snad_name, ra, dec, obj_id, discovery_date, mag
     except Exception as e:
         print(f"Request Error: {e}")
         return False
-
-def is_already_submitted(ra, dec, discovery_datetime_str):
-    url = f"http://tns.snad.space/api/v1/circle?ra={ra}&dec={dec}&radius_arcsec=2.0"
-    try:
-        resp = requests.get(url, timeout=10)
-        if resp.status_code == 200:
-            data = resp.json()
-            if isinstance(data, list) and len(data) > 0:
-                from astropy.time import Time
-                current_date = Time(discovery_datetime_str)
-                
-                best_match = None
-                min_diff = float('inf')
-                
-                for obj in data:
-                    tns_date_str = obj.get('discoverydate')
-                    tns_name = obj.get('name', 'Unknown')
-                    
-                    if tns_date_str:
-                        try:
-                            tns_date = Time(tns_date_str)
-                            diff_days = abs((current_date - tns_date).jd)
-                            if diff_days < min_diff:
-                                min_diff = diff_days
-                                best_match = (tns_name, tns_date.iso, diff_days)
-                        except Exception:
-                            pass
-                            
-                if best_match:
-                    return True, best_match[0], best_match[1], best_match[2]
-    except Exception as e:
-        print(f"Error checking TNS: {e}")
-        
-    return False, None, None, 999.0
-
-def upload_file_to_tns(file_url, oid, tns_url, api_key, bot_id, bot_name):
-    try:
-        img_resp = requests.get(file_url, timeout=30)
-        img_resp.raise_for_status()
-        
-        file_content = img_resp.content
-        filename = f"{oid}.png"
-        
-        upload_url = f"{tns_url}/set/file-upload"
-
-        headers = {'User-Agent': f'tns_marker{{"tns_id":{bot_id}, "type":"bot", "name":"{bot_name}"}}'}
-        
-        files = {'files[0]': (filename, file_content, 'image/png')}
-        data = {'api_key': api_key}
-        
-        response = requests.post(upload_url, headers=headers, files=files, data=data, timeout=30)
-        print(f"DEBUG TNS UPLOAD: Status {response.status_code}")
-        print(f"DEBUG TNS UPLOAD: Response {response.text[:500]}") 
-        
-        if response.status_code == 200:
-            res_json = response.json()
-            if res_json.get("id_code") == 200:
-                uploaded_files = res_json.get("data", [])
-                if isinstance(uploaded_files, list) and len(uploaded_files) > 0:
-                    return uploaded_files[0]
-        return None
-    except Exception as e:
-        print(f"Error uploading file: {e}")
-        return None
-
-def validate_internal_name(internal_name, snad_name, discovery_date, original_ztf_id="None"):
-    if internal_name.upper().startswith("ZTF") and len(internal_name) >= 5:
-        ztf_year = internal_name[3:5]
-        if len(discovery_date) >= 4:
-            disc_year = discovery_date[2:4]
-            if ztf_year.isdigit() and disc_year.isdigit() and ztf_year != disc_year:
-                return snad_name
-                
-    if internal_name == snad_name and original_ztf_id and original_ztf_id.lower() != 'none':
-        if original_ztf_id.upper().startswith("ZTF") and len(original_ztf_id) >= 5:
-            ztf_year = original_ztf_id[3:5]
-            if len(discovery_date) >= 4:
-                disc_year = discovery_date[2:4]
-                if ztf_year.isdigit() and disc_year.isdigit() and ztf_year == disc_year:
-                    return original_ztf_id
-                    
-    return internal_name

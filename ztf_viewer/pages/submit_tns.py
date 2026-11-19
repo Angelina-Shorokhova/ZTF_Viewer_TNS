@@ -123,39 +123,77 @@ async def get_layout(pathname, search):
         lc_warning = html.Div()
 
     return html.Div([
+        html.Iframe(
+            srcDoc="""
+                <script>
+                    var style = document.createElement('style');
+                    style.innerHTML = `
+                        #main-layout h1 { font-size: 0 !important; text-align: center !important; display: block !important; margin-bottom: 10px !important; margin-top: 10px !important; }
+                        #dr-title { display: none !important; }
+                        #username { display: none !important; }
+                        #header-logo { height: 90px !important; display: inline-block !important; margin: 0 auto !important; }
+                    `;
+                    window.parent.document.head.appendChild(style);
+                </script>
+            """,
+            style={"display": "none"}
+        ),
+        
         dcc.Store(id="tns-lc-store", data=lc_json),
         dcc.Store(id="tns-oid-dr", data={
             "oid": oid, "dr": dr, "ra": ra, "dec": dec, 
             "ztf_id": ztf_id, "separation": separation, "snad_name": snad_name
         }),
         dcc.Store(id="tns-det-store"),
-
         html.Div([
-            html.H2("Submit to TNS", style={"marginBottom": "5px"}),
+            html.H2("Submit to TNS", style={"marginTop": "0px", "marginBottom": "10px", "textAlign": "center", "fontWeight": "bold"}),
+            html.P(f"Object OID: {oid} ({dr})", style={"color": "#666", "textAlign": "center", "fontSize": "16px", "marginBottom": "30px"}),
+
+            lc_warning, 
             html.Div([
-                html.Label("Submit Mode:", style={"fontWeight": "bold", "marginRight": "15px"}),
+                html.Label("Submit Mode:", style={"fontWeight": "bold", "fontSize": "16px", "marginBottom": "8px", "display": "block", "textAlign": "center", "color": "#333"}),
                 dcc.RadioItems(
                     id="tns-mode",
                     options=[
-                        {"label": "Sandbox", "value": "sandbox"},
-                        {"label": "TNS", "value": "production"}
+                        {"label": "TNS", "value": "production"},
+                        {"label": "Sandbox", "value": "sandbox"}
                     ],
                     value="sandbox",
                     inline=True,
-                    labelStyle={"marginRight": "20px", "cursor": "pointer"}
-                ),
-            ], style={"marginBottom": "20px", "padding": "10px", "backgroundColor": "#e9ecef", "borderRadius": "5px"}),
+                    labelStyle={
+                        "display": "inline-flex",
+                        "alignItems": "center",
+                        "margin": "0 12px",
+                        "cursor": "pointer",
+                        "fontSize": "15px",
+                        "fontWeight": "bold",
+                        "textAlign": "center",
+                        "gap": "5px",
+                        "color": "#333"
+                    },
+                
+                    inputStyle={
+                        "width": "18px",
+                        "height": "18px",
+                        "cursor": "pointer",
+                        "accentColor": "#2874A6"
+                    }
+                )    
+            ], style={
+                "textAlign": "center",
+                "backgroundColor": "#f8f9fa",
+                "padding": "10px",
+                "borderRadius": "7px",
+                "marginBottom": "15px"
+            }),
             
             html.Div(id="tns-mode-warning", style={"color": "red", "fontWeight": "bold", "marginBottom": "20px"}),
-            html.H4(f"Object OID: {oid} ({dr})", style={"color": "#666", "marginBottom": "20px"}),
-            lc_warning,
-
             html.Div([
                 html.Div([
                     html.Label("Reporter:", style={"fontWeight": "bold"}),
                     dcc.Input(id="tns-reporter", type="text", value=default_reporter, style={"width": "100%", "boxSizing": "border-box", "marginBottom": "15px"}),
 
-                    html.Label("SNAD Name:", style={"fontWeight": "bold"}),
+                    html.Label("SNAD name:", style={"fontWeight": "bold"}),
                     dcc.Input(id="tns-snad-name", type="text", value=snad_name, style={"width": "100%", "boxSizing": "border-box", "marginBottom": "15px"}),
                     
                     html.Label("Internal name:", style={"fontWeight": "bold"}),
@@ -166,12 +204,12 @@ async def get_layout(pathname, search):
                     
                     html.Div([
                         dcc.Input(id="tns-method-other", type="text", placeholder="Method name", style={"width": "100%", "boxSizing": "border-box", "marginBottom": "5px"}),
-                        dcc.Input(id="tns-method-article", type="text", placeholder="Article URL/Name (optional)", style={"width": "100%", "boxSizing": "border-box", "marginBottom": "15px"}),
+                        dcc.Input(id="tns-method-article", type="text", placeholder="Article URL/Name", style={"width": "100%", "boxSizing": "border-box", "marginBottom": "15px"}),
                     ], id="custom-method-container", style={"display": "none"}),
                 ], style={"flex": "1", "minWidth": "250px"}),
 
                 html.Div([
-                    html.Label("TNS Type:", style={"fontWeight": "bold"}),
+                    html.Label("TNS type:", style={"fontWeight": "bold"}),
                     dcc.Dropdown(id="tns-type", options=TNS_TYPES, value="PSN", style={"marginBottom": "15px"}),
                     
                     html.Label("Comment:", style={"fontWeight": "bold"}),
@@ -179,7 +217,7 @@ async def get_layout(pathname, search):
                 ], style={"flex": "1", "minWidth": "250px"}),
             ], style={"display": "flex", "gap": "20px", "marginBottom": "20px", "backgroundColor": "#f8f9fa", "padding": "15px", "borderRadius": "8px"}),
 
-            html.Label("Light Curve Parameters:", style={"fontWeight": "bold", "marginBottom": "10px"}),
+            html.Label("Light curve parameters:", style={"fontWeight": "bold", "marginBottom": "10px"}),
             html.Div([
                 html.Div([html.Label("Refmag:"), dcc.Input(id="tns-refmag", type="text", value=str(default_ref), style={"width": "100%", "boxSizing": "border-box", "color": "#000"})], style={"flex": "1"}),
                 html.Div([html.Label("Err refmag:"), dcc.Input(id="tns-err-refmag", type="text", value=str(default_err), style={"width": "100%", "boxSizing": "border-box", "color": "#000"})], style={"flex": "1"}),
@@ -193,7 +231,7 @@ async def get_layout(pathname, search):
 
             html.Div([
                 dcc.Link("BACK TO OBJECT", href=back_href, style=BTN_STYLE),
-                html.Button("SUBMIT REPORT", id="tns-submit-button", n_clicks=0, style=BTN_STYLE),
+                html.Button("SUBMIT REPORT", id="tns-submit-button", n_clicks=0, disabled=(lc is None or len(lc) == 0), style=BTN_STYLE),
                 html.Button("FORCE SUBMIT", id="tns-force-submit-btn", n_clicks=0, 
                             style={**BTN_STYLE, "backgroundColor": "#f0ad4e", "display": "none"}),
             ], style={"display": "flex", "alignItems": "center", "marginBottom": "30px"}),
@@ -295,7 +333,6 @@ def update_generated_text(method, method_other, method_article, comment, reporte
 
     t = Time(det['mjd'], format='mjd', scale='utc')
     discovery_datetime_str = t.iso
-    internal_name = helpers.validate_internal_name(internal_name, snad_name, discovery_datetime_str)
 
     remark = get_remark_text(method, method_other, method_article, comment, oid_dr, internal_name, snad_name)
     phot_remark = helpers.build_phot_remark(internal_name, ref_str, oid_dr["oid"], det["filter"])
@@ -311,35 +348,41 @@ def update_generated_text(method, method_other, method_article, comment, reporte
     
     def format_row(label, value):
         return html.Tr([
-            html.Td(label, style={"fontWeight": "bold", "padding": "6px 15px 6px 0", "verticalAlign": "top", "width": "140px"}),
-            html.Td(value, style={"padding": "6px 0"})
+            html.Td(label, style={
+                "fontWeight": "bold", 
+                "padding": "8px 20px 8px 0", 
+                "verticalAlign": "top", 
+                "whiteSpace": "nowrap",
+                "borderBottom": "1px solid #eee",
+                "color": "#444"
+            }),
+            html.Td(value, style={
+                "padding": "8px 0", 
+                "borderBottom": "1px solid #eee",
+                "color": "#000",
+                "width": "100%" 
+            })
         ])
 
     review_table = html.Table([
         html.Tbody([
-            format_row("Reporter:", at_rep["reporter"]),
-            format_row("RA / DEC (deg):", f"{at_rep['ra']['value']} , {at_rep['dec']['value']}"),
-            format_row("Internal Name:", at_rep["internal_name"]),
-            format_row("TNS Type:", tns_type_display),
-            format_row("Discovery Date (UT):", at_rep["discovery_datetime"]),
-            format_row("Magnitude:", f"{round(det['orig_mag'], 2)} ({det['filter']}-band)"),
-
-            format_row("Photometry Remark:", html.Div(phot_remark, style={"fontSize": "13px"})),
-            format_row("Remarks:", html.Div(at_rep["remarks"], style={"whiteSpace": "pre-wrap", "fontSize": "13px"})),
+            format_row("Reporter", at_rep["reporter"]),
+            format_row("RA / DEC (deg)", f"{at_rep['ra']['value']} {at_rep['dec']['value']}"),
+            format_row("Internal name", at_rep["internal_name"]),
+            format_row("TNS type", tns_type_display),
+            format_row("Discovery date (UT)", at_rep["discovery_datetime"]),
+            format_row("Magnitude", f"{round(det['orig_mag'], 2)} ({det['filter']}-band)"),
+            format_row("Photometry remark", html.Div(phot_remark, style={"fontSize": "13px"})),
+            format_row("Remarks", html.Div(at_rep["remarks"], style={"whiteSpace": "pre-wrap", "fontSize": "13px"})),
         ])
-    ], style={"width": "100%", "borderCollapse": "collapse", "textAlign": "left"})
+    ], style={"width": "100%", "borderCollapse": "collapse", "textAlign": "left", "fontSize": "14px"})
 
     review_details = html.Details([
         html.Summary("Report review", style={"cursor": "pointer", "fontWeight": "bold", "fontSize": "16px", "marginBottom": "10px", "color": "#333"}),
-        html.Div(review_table, style={"border": "1px solid #ddd", "padding": "15px", "backgroundColor": "#fff", "borderRadius": "8px"})
-    ], style={"marginBottom": "20px"})
+        html.Div(review_table, style={"border": "1px solid #ddd", "padding": "10px 15px", "backgroundColor": "#fff", "borderRadius": "8px"})
+    ], style={"marginTop": "40px", "marginBottom": "20px"})
 
-    json_debug = html.Details([
-        html.Summary("Show raw JSON payload (for debugging)", style={"cursor": "pointer", "color": "#666", "fontSize": "12px"}),
-        html.Pre(json.dumps(payload, indent=4), style={"whiteSpace": "pre-wrap", "fontSize": "11px", "backgroundColor": "#fafafa", "border": "1px solid #ddd", "padding": "10px", "maxHeight": "200px", "overflowY": "scroll"})
-    ])
-
-    return html.Div([review_details, json_debug])
+    return review_details
     
 
 @callback(
@@ -348,7 +391,7 @@ def update_generated_text(method, method_other, method_article, comment, reporte
     Input("tns-submit-button", "n_clicks"),
     Input("tns-force-submit-btn", "n_clicks"),
     State("tns-det-store", "data"), State("tns-oid-dr", "data"), State("tns-refmag", "value"),
-    State("tns-err-refmag", "value"),
+    State("tns-err-refmag", "value"), 
     State("tns-reporter", "value"), State("tns-method", "value"), State("tns-method-other", "value"),
     State("tns-method-article", "value"), State("tns-comment", "value"), State("tns-type", "value"),
     State("tns-snad-name", "value"), State("tns-internal-name", "value"),
@@ -356,7 +399,6 @@ def update_generated_text(method, method_other, method_article, comment, reporte
     prevent_initial_call=True,
 )
 async def handle_submit(n_clicks, force_clicks, det, oid_dr, ref_str, err_ref_str, reporter, method, method_other, method_article, comment, tns_type, snad_name, internal_name, tns_mode):
-
     if not n_clicks and not force_clicks:
         return "", no_update
     
@@ -364,6 +406,14 @@ async def handle_submit(n_clicks, force_clicks, det, oid_dr, ref_str, err_ref_st
         return html.Div("No detection. Adjust refmag first.", style={"color": "red"}), no_update
     if not reporter or not tns_type or not internal_name:
         return html.Div("Reporter, TNS type, and Internal name are required.", style={"color": "red"}), no_update
+    if not oid_dr or oid_dr.get("ra") is None or oid_dr.get("dec") is None:
+        return html.Div("Error: Missing RA/DEC. Cannot submit.", style={"color": "red"}), no_update
+        
+    if internal_name.strip() in ["", "None", "SNAD_UNKNOWN"]:
+        return html.Div("Error: Please enter a valid Internal Name before submitting.", style={"color": "red"}), no_update
+        
+    if "None" in snad_name:
+        return html.Div("Error: SNAD Name is not valid. Please edit it manually.", style={"color": "red"}), no_update
 
     api_key = os.getenv("TNS_API_KEY")
     if not api_key:
@@ -375,19 +425,17 @@ async def handle_submit(n_clicks, force_clicks, det, oid_dr, ref_str, err_ref_st
         TNS_HOST = 'sandbox.wis-tns.org'
         
     tns_url = f'https://{TNS_HOST}/api'
-
     bot_id = '87994'
     bot_name = 'SNAD_bot'
 
     remark = get_remark_text(method, method_other, method_article, comment, oid_dr, internal_name, snad_name)
     phot_remark = helpers.build_phot_remark(internal_name, ref_str, oid_dr["oid"], det["filter"])
 
-
     t = Time(det['mjd'], format='mjd', scale='utc')
     discovery_datetime_str = t.iso
-    internal_name = helpers.validate_internal_name(internal_name, snad_name, discovery_datetime_str)
-
     is_force = ctx.triggered_id == "tns-force-submit-btn"
+    
+    mode_label = "Sandbox" if tns_mode == "sandbox" else "TNS"
 
     if not is_force:
         is_dup, tns_name, tns_date, diff_days = await asyncio.to_thread(
@@ -397,67 +445,59 @@ async def handle_submit(n_clicks, force_clicks, det, oid_dr, ref_str, err_ref_st
         if is_dup:
             if diff_days < 30.0:
                 return html.Div([
-                    html.Div("Submission Blocked:", style={"color": "red", "fontWeight": "bold", "marginBottom": "5px"}),
-                    html.P(f"Object already exists in TNS as {tns_name} with discovery date {tns_date} (differs by {diff_days:.1f} days). Submissions less than 30 days apart are blocked.", style={"margin": "0"})
+                    html.Div(f"Submission Blocked ({mode_label}):", style={"color": "#d9534f", "fontWeight": "bold", "marginBottom": "5px"}),
+                    html.P(f"Object already exists in {mode_label} as {tns_name} with discovery date {tns_date} (differs by {diff_days:.1f} days).", style={"color": "#a94442"})
                 ]), {"display": "none"}
             else:
                 return html.Div([
-                    html.Div("Warning: Object exists in TNS", style={"color": "#FF0000", "fontWeight": "bold", "marginBottom": "5px"}),
-                    html.P(f"An object already exists at these coordinates as {tns_name} with discovery date {tns_date} (differs by {diff_days:.1f} days)."),
-                    html.P("If you believe this is a new event, click 'FORCE SUBMIT' to proceed.",  style={"fontWeight": "bold"})
+                    html.Div(f"Warning: Object exists in {mode_label}", style={"color": "#f0ad4e", "fontWeight": "bold", "marginBottom": "5px"}),
+                    html.P(f"An object already exists at these coordinates as {tns_name} with discovery date {tns_date}.", style={"color": "#8a6d3b"}),
+                    html.P("If you believe this is a new event, click 'FORCE SUBMIT' to proceed.", style={"fontWeight": "bold"})
                 ]), {**BTN_STYLE, "backgroundColor": "#f0ad4e", "color": "white", "display": "inline-flex"}
 
     figure_url = f"https://ztf.snad.space/{oid_dr['dr']}/figure/{oid_dr['oid']}?format=png"
-    uploaded_filename = await asyncio.to_thread(helpers.upload_file_to_tns, figure_url, oid_dr['oid'], tns_url, api_key, bot_id, bot_name)
-    payload = helpers.build_payload(oid_dr, det, reporter, tns_type, remark, phot_remark,related_file_name=uploaded_filename)
+    
+    uploaded_filename = await asyncio.to_thread(
+        helpers.upload_file_to_tns, figure_url, oid_dr['oid'], tns_url, api_key, bot_id, bot_name
+    )
+    
+    payload = helpers.build_payload(
+        oid_dr, det, reporter, tns_type, remark, phot_remark, related_file_name=uploaded_filename
+    )
+    
     payload["at_report"]["0"]["internal_name"] = internal_name
     payload["at_report"]["0"]["photometry"]["photometry_group"]["0"]["flux"] = str(round(det['orig_mag'], 2))
-    result, error_msg = await asyncio.to_thread(helpers.submit_report, tns_url, payload, api_key, bot_id, bot_name)    
+
+    result, error_msg = await asyncio.to_thread(
+        helpers.submit_report, tns_url, payload, api_key, bot_id, bot_name
+    )
 
     if error_msg:
         return html.Div([
-            html.Div("TNS submission failed:", style={"color": "#d9534f", "fontWeight": "bold", "marginBottom": "5px"}),
+            html.Div(f"{mode_label} submission failed:", style={"color": "#d9534f", "fontWeight": "bold", "marginBottom": "5px"}),
             html.Pre(error_msg, style={"color": "#a94442", "backgroundColor": "#f2dede", "padding": "10px", "borderRadius": "4px", "whiteSpace": "pre-wrap"})
         ]), {"display": "none"}
 
-    catalog_updated = await asyncio.to_thread(
-        helpers.update_snad_catalog,
-        snad_name, oid_dr["ra"], oid_dr["dec"], oid_dr["oid"], 
-        t.iso, det['orig_mag'], det['magerr_down'], det['magerr_up'], 
-        ref_str, err_ref_str, result, tns_type, oid_dr.get("ztf_id", "None")
-    )
+    try:
+        catalog_updated = await asyncio.to_thread(
+            helpers.update_snad_catalog,
+            snad_name, oid_dr["ra"], oid_dr["dec"], oid_dr["oid"], 
+            t.iso, det['orig_mag'], det['magerr_down'], det['magerr_up'], 
+            ref_str, err_ref_str, result, tns_type, 
+            reporter, tns_mode, oid_dr.get("ztf_id", "None")
+        )
+        table_name = "Sandbox Table" if tns_mode == "sandbox" else "SNAD Catalog (TNS)"
+        if catalog_updated:
+            catalog_msg = html.Div(f"Object successfully added to {table_name}.", style={"color": "#666", "fontSize": "14px"})
+        else:
+            catalog_msg = html.Div(f"{mode_label} submitted, but failed to update {table_name} (check logs).", style={"color": "red", "fontSize": "14px"})
 
-    if catalog_updated:
-        catalog_msg = html.Div("SNAD catalog updated.", style={"color": "#666", "fontSize": "14px"})
-    else:
-        catalog_msg = html.Div("TNS submitted, but failed to update SNAD catalog. Check logs.", style={"color": "red", "fontSize": "14px"})
+    except Exception as e:
+        print(f"Catalog Exception: {e}")
+        catalog_msg = html.Div(f"{mode_label} submitted, but catalog update crashed: {e}", style={"color": "red", "fontSize": "14px"})
 
     return html.Div([
-        html.Div("Report sent to TNS.", style={"marginBottom": "5px"}),
-        html.Div(f"Received TNS name: {result}", style={"marginBottom": "5px"}),
+        html.Div(f"Report sent to {mode_label}.", style={"marginBottom": "5px", "fontWeight": "bold"}),
+        html.Div(f"Received {mode_label} name: {result}", style={"marginBottom": "5px"}),
         catalog_msg
     ], style={"color": "green"}), {"display": "none"}
-
-    
-@callback(
-    Output("tns-internal-name", "value"),
-    Input("tns-det-store", "data"),
-    State("tns-internal-name", "value"),
-    State("tns-snad-name", "value"),
-    State("tns-oid-dr", "data"),
-    prevent_initial_call=True
-)
-def auto_correct_internal_name(det, current_internal_name, snad_name, oid_dr):
-    if not det or not current_internal_name or not snad_name or not oid_dr:
-        return no_update
-    
-    t = Time(det['mjd'], format='mjd', scale='utc')
-    disc_date = t.iso
-    
-    original_ztf_id = oid_dr.get("ztf_id", "None")
-    
-    new_name = helpers.validate_internal_name(current_internal_name, snad_name, disc_date, original_ztf_id)
-    
-    if new_name != current_internal_name:
-        return new_name
-    return no_update
