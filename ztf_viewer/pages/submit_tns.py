@@ -450,7 +450,7 @@ async def handle_submit(n_clicks, force_clicks, det, oid_dr, ref_str, err_ref_st
             else:
                 return html.Div([
                     html.Div(f"Warning: Object exists in {mode_label}", style={"color": "#f0ad4e", "fontWeight": "bold", "marginBottom": "5px"}),
-                    html.P(f"An object already exists at these coordinates as {tns_name} with discovery date {tns_date}.", style={"color": "#8a6d3b"}),
+                    html.P(f"An object already exists at these coordinates as {tns_name} with discovery date {tns_date} (differs by {diff_days:.1f} days).", style={"color": "#8a6d3b"}),
                     html.P("If you believe this is a new event, click 'FORCE SUBMIT' to proceed.", style={"fontWeight": "bold"})
                 ]), {**BTN_STYLE, "backgroundColor": "#f0ad4e", "color": "white", "display": "inline-flex"}
 
