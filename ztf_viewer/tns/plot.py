@@ -71,7 +71,7 @@ def build_lightcurve_figure(data, det):
         marker=dict(
             size=10, 
             color='gold', 
-            symbol='circle',
+            symbol='star',
             line=dict(width=0.5, color="black")
         ),
         name='Discovery',
